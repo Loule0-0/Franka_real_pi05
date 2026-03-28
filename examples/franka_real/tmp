@@ -1,209 +1,208 @@
+你现场的真实映射是：
 
-  你现场的真实映射是：
+- 5000 = 第三视角
+- 5001 = 腕部
 
-  - 5000 = 第三视角
-  - 5001 = 腕部
+我已经把采集脚本改成和这个事实一致了，见 /home/server/franka/franka_teleop/teleop/experiments/
+run_env.py:32。部署脚本也改成显式固定：
 
-  我已经把采集脚本改成和这个事实一致了，见 /home/server/franka/franka_teleop/teleop/experiments/
-  run_env.py:32。部署脚本也改成显式固定：
+- exterior = 5000
+- wrist = 5001
 
-  - exterior = 5000
-  - wrist = 5001
+见 examples/franka_real/run_robot_client.sh:39。
 
-  见 examples/franka_real/run_robot_client.sh:39。
+训练配置现在也改成指向 toy/franka_singlearm_teleop 这套数据集，见 src/openpi/training/misc/
+franka_teleop_config.py:8。
 
-  训练配置现在也改成指向 toy/franka_singlearm_teleop 这套数据集，见 src/openpi/training/misc/
-  franka_teleop_config.py:8。
+关键点只有一个：
 
-  关键点只有一个：
+- 你已经采好的 /home/server/bc_data/toy/original 这批旧数据，是在采集脚本修正之前录的，所以原始 pickle
+  里的 wrist_rgb / base_rgb 标签很可能是反的。
+- 因此转换这批旧数据时，要加 --swap_wrist_base_labels。
+- 以后重新采的新数据，不需要这个参数。
 
-  - 你已经采好的 /home/server/bc_data/toy/original 这批旧数据，是在采集脚本修正之前录的，所以原始 pickle
-    里的 wrist_rgb / base_rgb 标签很可能是反的。
-  - 因此转换这批旧数据时，要加 --swap_wrist_base_labels。
-  - 以后重新采的新数据，不需要这个参数。
+下面给你一套直接可用的命令。
 
-  下面给你一套直接可用的命令。
+1. 原始数据位置
+你的原始数据放这里：
 
-  1. 原始数据位置
-  你的原始数据放这里：
+/home/server/bc_data/toy/original
 
-  /home/server/bc_data/toy/original
+目录结构应该类似：
 
-  目录结构应该类似：
+/home/server/bc_data/toy/original/0327_161957/*.pkl
+/home/server/bc_data/toy/original/0327_162024/*.pkl
+...
 
-  /home/server/bc_data/toy/original/0327_161957/*.pkl
-  /home/server/bc_data/toy/original/0327_162024/*.pkl
-  ...
+2. 转换旧数据为 LeRobot 训练集
+这一步会把旧数据处理后放到你要求的新目录：
 
-  2. 转换旧数据为 LeRobot 训练集
-  这一步会把旧数据处理后放到你要求的新目录：
+/home/server/bc_data/toy/franka_singlearm_teleop
 
-  /home/server/bc_data/toy/franka_singlearm_teleop
+执行命令：
 
-  执行命令：
+cd /home/server/Desktop/vla/openpi
 
-  cd /home/server/Desktop/vla/openpi
+export HF_LEROBOT_HOME=/home/server/bc_data
 
-  export HF_LEROBOT_HOME=/home/server/bc_data
+/home/server/Desktop/vla/openpi/.venv/bin/python \
+  examples/franka_real/convert_franka_teleop_to_lerobot.py \
+  --raw_dir /home/server/bc_data/toy/original \
+  --task "put the toy in the box" \
+  --swap_wrist_base_labels \
+  --output_dir /home/server/bc_data/toy/franka_singlearm_teleop
 
-  /home/server/Desktop/vla/openpi/.venv/bin/python \
-    examples/franka_real/convert_franka_teleop_to_lerobot.py \
-    --raw_dir /home/server/bc_data/toy/original \
-    --task "put the toy in the box" \
-    --swap_wrist_base_labels \
-    --output_dir /home/server/bc_data/toy/franka_singlearm_teleop
+解释：
 
-  解释：
+- HF_LEROBOT_HOME=/home/server/bc_data
+    - 让 LeRobot 的内部数据根目录落在 /home/server/bc_data
+- --raw_dir /home/server/bc_data/toy/original
+    - 指向你采集的原始 pickle 数据
+- --task "pick up the fork"
+    - 给每条轨迹附上任务文本，训练时会变成 prompt
+- --swap_wrist_base_labels
+    - 专门给你这批旧数据用，把旧的错误相机标签交换回来
+- --output_dir /home/server/bc_data/toy/franka_singlearm_teleop
+    - 额外复制一份处理好的训练集到 toy 目录下的新文件夹
 
-  - HF_LEROBOT_HOME=/home/server/bc_data
-      - 让 LeRobot 的内部数据根目录落在 /home/server/bc_data
-  - --raw_dir /home/server/bc_data/toy/original
-      - 指向你采集的原始 pickle 数据
-  - --task "pick up the fork"
-      - 给每条轨迹附上任务文本，训练时会变成 prompt
-  - --swap_wrist_base_labels
-      - 专门给你这批旧数据用，把旧的错误相机标签交换回来
-  - --output_dir /home/server/bc_data/toy/franka_singlearm_teleop
-      - 额外复制一份处理好的训练集到 toy 目录下的新文件夹
+转换脚本在这里：
+examples/franka_real/convert_franka_teleop_to_lerobot.py:112
 
-  转换脚本在这里：
-  examples/franka_real/convert_franka_teleop_to_lerobot.py:112
+3. 转换后检查目录
+转换完成后看一下：
 
-  3. 转换后检查目录
-  转换完成后看一下：
+ls -la /home/server/bc_data/toy
+ls -la /home/server/bc_data/toy/franka_singlearm_teleop
 
-  ls -la /home/server/bc_data/toy
-  ls -la /home/server/bc_data/toy/franka_singlearm_teleop
+如果你想进一步确认 LeRobot 默认目录下也生成了对应 repo，可以看：
 
-  如果你想进一步确认 LeRobot 默认目录下也生成了对应 repo，可以看：
+ls -la /home/server/bc_data/toy/franka_singlearm_teleop
 
-  ls -la /home/server/bc_data/toy/franka_singlearm_teleop
+因为当前训练配置里的 repo_id 是：
 
-  因为当前训练配置里的 repo_id 是：
+toy/franka_singlearm_teleop
 
-  toy/franka_singlearm_teleop
+4. 计算归一化统计量
+训练前必须先算 state 和 actions 的 norm stats：
 
-  4. 计算归一化统计量
-  训练前必须先算 state 和 actions 的 norm stats：
+cd /home/server/Desktop/vla/openpi
 
-  cd /home/server/Desktop/vla/openpi
+export HF_LEROBOT_HOME=/home/server/bc_data
 
-  export HF_LEROBOT_HOME=/home/server/bc_data
+/home/server/Desktop/vla/openpi/.venv/bin/python \
+  scripts/compute_norm_stats.py \
+  --config-name pi05_franka_singlearm_teleop
+解释：
 
-  /home/server/Desktop/vla/openpi/.venv/bin/python \
-    scripts/compute_norm_stats.py \
-    --config-name pi05_franka_singlearm_teleop
-  解释：
+- 这一步会读取 toy/franka_singlearm_teleop
+- 根据训练配置里的输入格式，统计 state 和 actions 的均值/方差
+- 训练和部署都会依赖这份统计量
 
-  - 这一步会读取 toy/franka_singlearm_teleop
-  - 根据训练配置里的输入格式，统计 state 和 actions 的均值/方差
-  - 训练和部署都会依赖这份统计量
+脚本位置：
+scripts/compute_norm_stats.py:89
 
-  脚本位置：
-  scripts/compute_norm_stats.py:89
+5. 开始训练
+训练命令：
 
-  5. 开始训练
-  训练命令：
+cd /home/server/Desktop/vla/openpi
 
-  cd /home/server/Desktop/vla/openpi
+export HF_LEROBOT_HOME=/home/server/bc_data
 
-  export HF_LEROBOT_HOME=/home/server/bc_data
+/home/server/Desktop/vla/openpi/.venv/bin/python \
+  scripts/train.py \
+  pi05_franka_singlearm_teleop \
+  --exp_name toy_pick_fork_v1 \
+  --overwrite
 
-  /home/server/Desktop/vla/openpi/.venv/bin/python \
-    scripts/train.py \
-    pi05_franka_singlearm_teleop \
-    --exp_name toy_pick_fork_v1 \
-    --overwrite
+解释：
 
-  解释：
+- pi05_franka_singlearm_teleop
+    - 就是我给你加的训练配置名
+- --exp_name toy_pick_fork_v1
+    - 这次实验名
+- --overwrite
+    - 如果同名实验目录已存在，允许覆盖
 
-  - pi05_franka_singlearm_teleop
-      - 就是我给你加的训练配置名
-  - --exp_name toy_pick_fork_v1
-      - 这次实验名
-  - --overwrite
-      - 如果同名实验目录已存在，允许覆盖
+训练入口：
+scripts/train.py:279
 
-  训练入口：
-  scripts/train.py:279
+配置文件：
+src/openpi/training/misc/franka_teleop_config.py:40
 
-  配置文件：
-  src/openpi/training/misc/franka_teleop_config.py:40
+6. 训练配置实际吃进去的内容
+你现在这条链路是完全一致的：
 
-  6. 训练配置实际吃进去的内容
-  你现在这条链路是完全一致的：
+采集端：
 
-  采集端：
+- 5000 -> base_rgb -> 第三视角
+- 5001 -> wrist_rgb -> 腕部
+- joint_positions -> 8维
+- control -> 下一时刻8维绝对动作
 
-  - 5000 -> base_rgb -> 第三视角
-  - 5001 -> wrist_rgb -> 腕部
-  - joint_positions -> 8维
-  - control -> 下一时刻8维绝对动作
+转换后训练集：
 
-  转换后训练集：
+- exterior_image_1_left <- 第三视角
+- wrist_image_left <- 腕部
+- joint_position <- 前7维关节
+- gripper_position <- 夹爪状态
+- actions <- 8维动作
+- task <- 你的指令文本
 
-  - exterior_image_1_left <- 第三视角
-  - wrist_image_left <- 腕部
-  - joint_position <- 前7维关节
-  - gripper_position <- 夹爪状态
-  - actions <- 8维动作
-  - task <- 你的指令文本
+训练时：
 
-  训练时：
+- 图像和状态会被整理成 DroidInputs
+- task 会自动转成 prompt
+- state/actions 会做归一化
+- 当前没有做 delta action 重构，仍然训练绝对 action
 
-  - 图像和状态会被整理成 DroidInputs
-  - task 会自动转成 prompt
-  - state/actions 会做归一化
-  - 当前没有做 delta action 重构，仍然训练绝对 action
+相关代码：
+src/openpi/policies/droid_policy.py:35
+src/openpi/training/data_loader.py:148
+src/openpi/transforms.py:115
 
-  相关代码：
-  src/openpi/policies/droid_policy.py:35
-  src/openpi/training/data_loader.py:148
-  src/openpi/transforms.py:115
+7. 训练完启动 policy server
+训练完后，用你的 checkpoint 启服务。命令格式是：
 
-  7. 训练完启动 policy server
-  训练完后，用你的 checkpoint 启服务。命令格式是：
+cd /home/server/Desktop/vla/openpi
 
-  cd /home/server/Desktop/vla/openpi
+export HF_LEROBOT_HOME=/home/server/bc_data
 
-  export HF_LEROBOT_HOME=/home/server/bc_data
+/home/server/Desktop/vla/openpi/.venv/bin/python \
+  scripts/serve_policy.py \
+  --port 8000 \
+  --policy.config pi05_franka_singlearm_teleop \
+  --policy.dir /path/to/your/checkpoint_dir
 
-  /home/server/Desktop/vla/openpi/.venv/bin/python \
-    scripts/serve_policy.py \
-    --port 8000 \
-    --policy.config pi05_franka_singlearm_teleop \
-    --policy.dir /path/to/your/checkpoint_dir
+/path/to/your/checkpoint_dir 要换成训练输出目录，比如某个 step 目录。
 
-  /path/to/your/checkpoint_dir 要换成训练输出目录，比如某个 step 目录。
+服务脚本：
+scripts/serve_policy.py:20
 
-  服务脚本：
-  scripts/serve_policy.py:20
+8. 真机部署
+然后再起 robot client：
 
-  8. 真机部署
-  然后再起 robot client：
+cd /home/server/Desktop/vla/openpi/examples/franka_real
+./run_robot_client.sh
 
-  cd /home/server/Desktop/vla/openpi/examples/franka_real
-  ./run_robot_client.sh
+现在这个脚本已经固定：
 
-  现在这个脚本已经固定：
+- 5000 -> exterior
+- 5001 -> wrist
 
-  - 5000 -> exterior
-  - 5001 -> wrist
+见 examples/franka_real/run_robot_client.sh:39
 
-  见 examples/franka_real/run_robot_client.sh:39
+9. 以后重新采新数据时
+如果你从现在开始重新采，因为采集脚本已经修正了，就不要再加 --swap_wrist_base_labels，直接这样转：
 
-  9. 以后重新采新数据时
-  如果你从现在开始重新采，因为采集脚本已经修正了，就不要再加 --swap_wrist_base_labels，直接这样转：
+cd /home/server/Desktop/vla/openpi
 
-  cd /home/server/Desktop/vla/openpi
+export HF_LEROBOT_HOME=/home/server/bc_data
 
-  export HF_LEROBOT_HOME=/home/server/bc_data
+/home/server/Desktop/vla/openpi/.venv/bin/python \
+  examples/franka_real/convert_franka_teleop_to_lerobot.py \
+  --raw_dir /home/server/bc_data/toy/original \
+  --task "pick up the fork" \
+  --output_dir /home/server/bc_data/toy/franka_singlearm_teleop
 
-  /home/server/Desktop/vla/openpi/.venv/bin/python \
-    examples/franka_real/convert_franka_teleop_to_lerobot.py \
-    --raw_dir /home/server/bc_data/toy/original \
-    --task "pick up the fork" \
-    --output_dir /home/server/bc_data/toy/franka_singlearm_teleop
-
-  如果你愿意，我下一步可以把这整套命令整理成一个可直接执行的 toy_pipeline.sh，放到 examples/franka_real
-  里。
+如果你愿意，我下一步可以把这整套命令整理成一个可直接执行的 toy_pipeline.sh，放到 examples/franka_real
+里。
