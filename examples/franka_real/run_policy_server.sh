@@ -8,11 +8,11 @@ OPENPI_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # 固定配置: 直接修改这里
 # =========================
 
-# OpenPI 模型目录。你的 pi05 模型当前放在这里。
-MODEL_DIR="/home/server/Desktop/vla/model/pi05_base"
+# OpenPI 模型目录。默认指向本次 pick_toy 训练完成后的 checkpoint。
+MODEL_DIR="${OPENPI_ROOT}/checkpoints/pi05_franka_pick_toy_chunk50/pick_toy_delta_chunk50_bs64_4gpu/29999"
 
-# OpenPI 策略配置名。pi05 基础模型保持这个即可。
-POLICY_CONFIG="pi05_droid"
+# OpenPI 策略配置名。必须和训练时的 config 保持一致，包含 delta action 输入/输出变换。
+POLICY_CONFIG="pi05_franka_pick_toy_chunk50"
 
 # Websocket policy server 监听端口。机器人端脚本要和这里一致。
 SERVER_PORT="8000"
