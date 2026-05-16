@@ -963,6 +963,100 @@ _CONFIGS = [
         fsdp_devices=2,
         wandb_enabled=False,
     ),
+    TrainConfig(
+        name="pi05_franka_stack_block_chunk50",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=50,
+        ),
+        data=SimpleDataConfig(
+            repo_id="real/stack_block",
+            assets=AssetsConfig(asset_id="real/stack_block"),
+            data_transforms=lambda model: _transforms.Group(
+                inputs=[
+                    droid_policy.DroidInputs(model_type=model.model_type),
+                    _transforms.DeltaActions(_transforms.make_bool_mask(7, -1)),
+                ],
+                outputs=[
+                    _transforms.AbsoluteActions(_transforms.make_bool_mask(7, -1)),
+                    droid_policy.DroidOutputs(),
+                ],
+            ),
+            base_config=DataConfig(
+                prompt_from_task=True,
+                repack_transforms=_transforms.Group(
+                    inputs=[
+                        _transforms.RepackTransform(
+                            {
+                                "observation/exterior_image_1_left": "exterior_image_1_left",
+                                "observation/wrist_image_left": "wrist_image_left",
+                                "observation/joint_position": "joint_position",
+                                "observation/gripper_position": "gripper_position",
+                                "actions": "actions",
+                                "prompt": "prompt",
+                            }
+                        )
+                    ]
+                ),
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "/opt/liblibai-models/user-workspace/lzy/data/model/pi05_base/params"
+        ),
+        num_train_steps=50_000,
+        batch_size=128,
+        num_workers=8,
+        fsdp_devices=2,
+        wandb_enabled=False,
+    ),
+    TrainConfig(
+        name="pi05_franka_fold_towel_chunk50",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=50,
+        ),
+        data=SimpleDataConfig(
+            repo_id="real/fold_towel",
+            assets=AssetsConfig(asset_id="real/fold_towel"),
+            data_transforms=lambda model: _transforms.Group(
+                inputs=[
+                    droid_policy.DroidInputs(model_type=model.model_type),
+                    _transforms.DeltaActions(_transforms.make_bool_mask(7, -1)),
+                ],
+                outputs=[
+                    _transforms.AbsoluteActions(_transforms.make_bool_mask(7, -1)),
+                    droid_policy.DroidOutputs(),
+                ],
+            ),
+            base_config=DataConfig(
+                prompt_from_task=True,
+                repack_transforms=_transforms.Group(
+                    inputs=[
+                        _transforms.RepackTransform(
+                            {
+                                "observation/exterior_image_1_left": "exterior_image_1_left",
+                                "observation/wrist_image_left": "wrist_image_left",
+                                "observation/joint_position": "joint_position",
+                                "observation/gripper_position": "gripper_position",
+                                "actions": "actions",
+                                "prompt": "prompt",
+                            }
+                        )
+                    ]
+                ),
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "/opt/liblibai-models/user-workspace/lzy/data/model/pi05_base/params"
+        ),
+        num_train_steps=40_000,
+        batch_size=64,
+        num_workers=8,
+        fsdp_devices=2,
+        wandb_enabled=False,
+    ),
     #
     # ALOHA Sim configs. This config is used to demonstrate how to train on a simple simulated environment.
     #
